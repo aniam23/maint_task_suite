@@ -7,4 +7,6 @@ from odoo.exceptions import ValidationError
 
 class MaintenanceRequest(models.Model):  
     _inherit = 'maintenance.request'
+
+    
    
