@@ -15,10 +15,11 @@
 
     'version': '1.0',
 
-    'depends': ['base','maintenance'], 
+    'depends': ['base','maintenance','maintenance_task'], 
     'data': [
         'security/ir.model.access.csv',
-         'views/task_maint_suite.xml',
+        'views/task_maint_suite.xml',
+        'views/maintenance_request_activity.xml'
     ],
     
     'installable': True,

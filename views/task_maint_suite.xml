@@ -1,60 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <data>
-      <!-- explicit list view definition -->
-      <!--
-      <record model="ir.ui.view" id="my_module.list">
-        <field name="name">my_module list</field>
-        <field name="model">my_module.my_module</field>
+    <record id="view_maintenance_request_form_inherit" model="ir.ui.view">
+        <field name="name">maintenance.request.form.inherit</field>
+        <field name="model">maintenance.request</field>
+        <field name="inherit_id" ref="maintenance.hr_equipment_request_view_form"/>
         <field name="arch" type="xml">
-          <tree>
-            <field name="name"/>
-            <field name="value"/>
-            <field name="value2"/>
-          </tree>
+            <xpath expr="//sheet" position="inside">
+                <notebook>
+                    <page string="Actividades">
+                        <div class="o_notebook_full_width">
+                            <field name="task_ids">
+                                <tree editable="bottom">
+                                    <field name="done" string="Completada"/>
+                                    <field name="description" string="Actividad"/>
+                                </tree>
+                            </field>
+                        </div>
+                    </page>
+                    <page string="Manual PDF">
+                        <div class="o_notebook_full_width">
+                            <group>
+                                <field name="document_ids" widget="pdf_viewer" filename="document_filename"/>
+                            </group>
+                        </div>
+                    </page>
+                    <page string="Reporte Semanal">
+                        <div class="o_notebook_full_width">
+                            <group>
+                                <group>
+                                    <field name="selected_month" widget="date" options="{'mode': 'month'}"/>
+                                    <field name="week_number"/>
+                                </group>
+                                <group>
+                                    <button name="generate_weekly_excel" string="Generar Reporte" type="object" class="oe_highlight"/>
+                                </group>
+                            </group>
+                        </div>
+                    </page>
+                    <page string="Reporte Mensual">
+                        <div class="o_notebook_full_width">
+                            <group>
+                                <group>
+                                    <field name="report_type" invisible="1"/>
+                                    <group>
+                                        <field name="selected_month" widget="date" options="{'mode': 'month'}" string="Seleccione Mes"/>
+                                        <button name="generate_monthly_excel" string="Generar Reporte" type="object" class="oe_highlight"/>
+                                    </group>
+                                </group>
+                            </group>
+                        </div>
+                    </page>
+                </notebook>
+            </xpath>
         </field>
-      </record>
-      -->
-  
-      <!-- actions opening views on models -->
-      <!--
-      <record model="ir.actions.act_window" id="my_module.action_window">
-        <field name="name">my_module window</field>
-        <field name="res_model">my_module.my_module</field>
-        <field name="view_mode">tree,form</field>
-      </record>
-      -->
-  
-      <!-- server action to the one above -->
-      <!--
-      <record model="ir.actions.server" id="my_module.action_server">
-        <field name="name">my_module server</field>
-        <field name="model_id" ref="model_my_module_my_module"/>
-        <field name="state">code</field>
-        <field name="code">
-          action = {
-            "type": "ir.actions.act_window",
-            "view_mode": "tree,form",
-            "res_model": self._name,
-          }
-        </field>
-      </record>
-      -->
-  
-      <!-- Top menu item -->
-      <!--
-      <menuitem name="my_module" id="my_module.menu_root"/>
-      -->
-      <!-- menu categories -->
-      <!--
-      <menuitem name="Menu 1" id="my_module.menu_1" parent="my_module.menu_root"/>
-      <menuitem name="Menu 2" id="my_module.menu_2" parent="my_module.menu_root"/>
-      -->
-      <!-- actions -->
-      <!--
-      <menuitem name="List" id="my_module.menu_1_list" parent="my_module.menu_1"
-                action="my_module.action_window"/>
-      <menuitem name="Server to list" id="my_module" parent="my_module.menu_2"
-                action="my_module.action_server"/>
-      -->
-    </data>
-  </odoo>
+    </record>
+</odoo>

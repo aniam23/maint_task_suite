@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_maintenance_activity_tree" model="ir.ui.view">
+        <field name="name">maintenance.request.activity.tree</field>
+        <field name="model">maintenance.request.activity</field>
+        <field name="arch" type="xml">
+            <tree editable="bottom">
+                <field name="done" string="Completada"/>
+                <field name="description" string="Tarea"/>
+                <field name="checklist_id" string="Relacionado con" invisible="1"/>
+            </tree>
+        </field>
+    </record>
+    
+    <!-- Vista formulario -->
+    <record id="view_maintenance_activity_form" model="ir.ui.view">
+        <field name="name">maintenance.request.activity.form</field>
+        <field name="model">maintenance.request.activity</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <field name="description" string="Actividad"/>
+                        <field name="done" string="Completada"/>
+                        <field name="checklist_id" string="Relacionado con"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    
+    <!-- Vista búsqueda -->
+    <record id="view_maintenance_activity_search" model="ir.ui.view">
+        <field name="name">maintenance.request.activity.search</field>
+        <field name="model">maintenance.request.activity</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="description" string="Buscar tarea"/>
+                <filter string="Completadas" name="done" domain="[('done','=',True)]"/>
+                <filter string="Pendientes" name="not_done" domain="[('done','=',False)]"/>
+            </search>
+        </field>
+    </record>
+    
+    <!-- Acción de ventana para manejar este modelo -->
+    <record id="action_maintenance_activity" model="ir.actions.act_window">
+        <field name="name">Actividades de Mantenimiento</field>
+        <field name="res_model">maintenance.request.activity</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+</odoo>
