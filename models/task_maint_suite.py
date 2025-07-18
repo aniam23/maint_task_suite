@@ -7,6 +7,7 @@ import xlsxwriter
 from odoo.exceptions import UserError
 from odoo.exceptions import ValidationError
 class MaintenanceRequest(models.Model):
+    
     _inherit = 'maintenance.request'
     task_ids = fields.One2many('maintenance.request.activity', 'checklist_id', string="Tareas")
     show_date_selection = fields.Boolean(default=False)
@@ -30,7 +31,7 @@ class MaintenanceRequest(models.Model):
 
     @api.constrains('schedule_date')
     def check_schedule_date(self):
-        """Valida que se ingrese una fecha de programación para la tarea"""
+        "Validates that a scheduling date is entered for the task"
         for request in self:
             if not request.schedule_date:
                 raise ValidationError(_("Debe ingresar una fecha de inicio para la tarea."))
@@ -66,8 +67,8 @@ class MaintenanceRequest(models.Model):
              'parent_request_id.repeat_until', 'parent_request_id.task_ids.done')
     def compute_task_color (self):
         """
-        Asigna un color a la tarea en función de su estado y fecha de vencimiento,
-        considerando tanto las tareas padre como hijas.
+       Assign a color to the task based on its status and due date,
+       considering both parent and child tasks.
         """
         today = fields.Date.today()
 
@@ -148,7 +149,7 @@ class MaintenanceRequest(models.Model):
 
     def action_show_weekly_options(self):
         """
-        Muestra las opciones de selección de semana y mes para el reporte semanal """
+        Displays the week and month selection options for the weekly report """
         self.write({
             'show_date_selection': True,
             'report_type': 'weekly',
@@ -165,7 +166,7 @@ class MaintenanceRequest(models.Model):
 
     def action_show_monthly_options(self):
         """
-        Muestra las opciones de selección de mes para el reporte mensual """
+        Displays the month selection options for the monthly report"""
         self.write({
             'show_date_selection': True,
             'report_type': 'monthly',
@@ -180,8 +181,7 @@ class MaintenanceRequest(models.Model):
         }
 
     def get_weekly_date_range(self):
-        """
-        Calcula el rango de fechas para el reporte semanal basado en la semana seleccionada."""
+        """ Calculates the date range for the weekly report based on the selected week."""
         month_start = self.selected_month.replace(day=1)
         week_num = int(self.week_number)
         start_date = month_start + timedelta(days=(week_num - 1) * 7)
@@ -190,8 +190,7 @@ class MaintenanceRequest(models.Model):
         return start_date, end_date
 
     def generate_report(self):
-        """
-        Genera el reporte basado en el tipo seleccionado (semanal o mensual) """
+        """ Generates the report based on the selected type (weekly or monthly)"""
         if not self.report_type:
             raise UserError(_('Debe seleccionar un tipo de reporte'))
 
@@ -203,15 +202,14 @@ class MaintenanceRequest(models.Model):
             return self.generate_monthly_excel()
 
     def generate_weekly_excel(self):
-        """
-        Genera el reporte semanal en formato Excel """
+        """Generate the weekly report in Excel format """
         start_date, end_date = self._get_weekly_date_range()
         domain = [('request_date', '>=', start_date), ('request_date', '<=', end_date)]
         filename = f"Reporte_Semanal_{start_date.strftime('%Y-%m-%d')}_al_{end_date.strftime('%Y-%m-%d')}.xlsx"
         return self.generate_excel_report(domain, filename)
 
     def generate_monthly_excel(self):
-        """ Genera el reporte mensual en formato Excel """
+        """ Generate the monthly report in Excel format """
         start_date = self.selected_month.replace(day=1)
         end_date = (start_date + relativedelta(months=1)) - timedelta(days=1)
         domain = [('request_date', '>=', start_date), ('request_date', '<=', end_date)]
@@ -219,7 +217,7 @@ class MaintenanceRequest(models.Model):
         return self.generate_excel_report(domain, filename)
 
     def generate_excel_report(self, domain, filename):
-        """ Genera el reporte en formato Excel para el dominio y nombre de archivo especificados """
+        """ Generates the report in Excel format for the specified domain and file name"""
         requests = self.search(domain, order='request_date asc')
         output = io.BytesIO()
         workbook = xlsxwriter.Workbook(output, {'in_memory': True})
@@ -229,7 +227,6 @@ class MaintenanceRequest(models.Model):
             'font_color': 'white', 'align': 'center'
         })
         date_format = workbook.add_format({'num_format': 'yyyy-mm-dd'})
-
         # Definición de encabezados y anchos de columna
         headers = [
             ('ID', 8), ('Fecha', 12), ('Equipo', 20),
@@ -271,9 +268,9 @@ class MaintenanceRequest(models.Model):
 
     def check_and_update_stage(self):
         """
-        Verifica el estado de las tareas asociadas a una solicitud de mantenimiento:
-        - Si todas las tareas están completadas, cambia a estado 'reparado' (sequence=3)
-        - Si al menos una  está completada, cambia a estado 'en progreso' (sequence=2)
+        Check the status of the tasks associated with a maintenance request:
+        - If all tasks are completed, the status changes to 'repaired' (sequence=3)
+        - If at least one is completed, the status changes to 'in progress' (sequence=2)
         """
         for request in self:
             if request.task_ids:

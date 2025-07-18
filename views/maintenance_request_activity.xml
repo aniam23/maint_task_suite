@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <!-- Mantén tus vistas existentes para maintenance.request.activity -->
     <record id="view_maintenance_activity_tree" model="ir.ui.view">
         <field name="name">maintenance.request.activity.tree</field>
         <field name="model">maintenance.request.activity</field>
@@ -12,7 +13,6 @@
         </field>
     </record>
     
-    <!-- Vista formulario -->
     <record id="view_maintenance_activity_form" model="ir.ui.view">
         <field name="name">maintenance.request.activity.form</field>
         <field name="model">maintenance.request.activity</field>
@@ -28,8 +28,20 @@
             </form>
         </field>
     </record>
-    
-    <!-- Vista búsqueda -->
+
+    <!-- Vista mejorada para maintenance.equipment -->
+    <record id="maintenance_equipment_form_custom" model="ir.ui.view">
+        <field name="name">maintenance.equipment.form.custom</field>
+        <field name="model">maintenance.equipment</field>
+        <field name="inherit_id" ref="maintenance.hr_equipment_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='model']" position="after">
+                <field name="brand" string="Marca"/>
+                <field name="machine_number" string="Número de máquina"/>
+            </xpath>
+        </field>
+    </record>
+
     <record id="view_maintenance_activity_search" model="ir.ui.view">
         <field name="name">maintenance.request.activity.search</field>
         <field name="model">maintenance.request.activity</field>
@@ -42,7 +54,6 @@
         </field>
     </record>
     
-    <!-- Acción de ventana para manejar este modelo -->
     <record id="action_maintenance_activity" model="ir.actions.act_window">
         <field name="name">Actividades de Mantenimiento</field>
         <field name="res_model">maintenance.request.activity</field>

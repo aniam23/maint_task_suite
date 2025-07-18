@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+       <!-- inherit model -->
     <record id="view_maintenance_request_form_inherit" model="ir.ui.view">
         <field name="name">maintenance.request.form.inherit</field>
         <field name="model">maintenance.request</field>
         <field name="inherit_id" ref="maintenance.hr_equipment_request_view_form"/>
         <field name="arch" type="xml">
+            <!-- menu notebook -->
             <xpath expr="//sheet" position="inside">
                 <notebook>
                     <page string="Actividades">

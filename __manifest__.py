@@ -20,7 +20,10 @@
         'security/ir.model.access.csv',
         'views/task_maint_suite.xml',
         'views/maintenance_request_activity.xml'
+       
     ],
+
+    'images': ['static/description/Task status and subtasks.png'],
     
     'installable': True,
     'application': True,
