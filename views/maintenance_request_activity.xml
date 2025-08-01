@@ -27,7 +27,7 @@
                 </sheet>
             </form>
         </field>
-    </record>
+    </record>  
 
     <!-- Vista mejorada para maintenance.equipment -->
     <record id="maintenance_equipment_form_custom" model="ir.ui.view">

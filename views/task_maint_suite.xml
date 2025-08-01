@@ -6,7 +6,15 @@
         <field name="model">maintenance.request</field>
         <field name="inherit_id" ref="maintenance.hr_equipment_request_view_form"/>
         <field name="arch" type="xml">
-            <!-- menu notebook -->
+            <xpath expr="//field[@name='schedule_date']" position="after">  
+                <label for="responsible_id" string="Responsable" class="oe_bold"/>
+                <field name="responsible_id" string="Responsable" widget="many2one"  class="oe_bold"/>
+            </xpath>
+            <xpath expr="//field[@name='responsible_id']" position="after">  
+                <div class="oe_bold" style="margin-bottom: 8px;">
+                    <label for="frequency" string="Recurrente"/>
+                </div>
+            </xpath>
             <xpath expr="//sheet" position="inside">
                 <notebook>
                     <page string="Actividades">
@@ -48,6 +56,22 @@
                                         <field name="selected_month" widget="date" options="{'mode': 'month'}" string="Seleccione Mes"/>
                                         <button name="generate_monthly_excel" string="Generar Reporte" type="object" class="oe_highlight"/>
                                     </group>
+                                </group>
+                            </group>
+                        </div>
+                    </page>
+                    <page string="Evidencias">
+                        <div class="o_notebook_full_width">
+                            <group>
+                                <group>
+                                    <button name="open_camera" string="Tomar Foto" type="object" 
+                                            class="oe_highlight" icon="fa-camera"/>
+
+                                    <!-- Campo modificado para ocultar etiqueta -->
+                                    <field name="evidence_images" widget="many2many_binary" nolabel="1" 
+                                    options="{'preview': true
+                                    'zoom': true,
+                                        }"/>
                                 </group>
                             </group>
                         </div>

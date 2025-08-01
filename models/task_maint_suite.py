@@ -13,6 +13,10 @@ class MaintenanceRequest(models.Model):
     show_date_selection = fields.Boolean(default=False)
     report_type = fields.Selection([('weekly', 'Semanal'), ('monthly', 'Mensual')], string="Tipo de Reporte")
     selected_month = fields.Date(string="Mes de Referencia", default=fields.Date.today())
+    responsible_id = fields.Many2one(
+    'hr.employee',  
+    string="Responsable",  
+    )
     document_ids = fields.Binary(string="PDF", help="Sube un PDF para previsualización")
     week_number = fields.Selection([
         ('1', 'Semana 1 (1-7)'),
@@ -21,6 +25,7 @@ class MaintenanceRequest(models.Model):
         ('4', 'Semana 4 (22-28)'),
         ('5', 'Semana 5 (29-31)')
     ], string="Semana del Mes", default='1')
+
     color = fields.Integer(
         string='Color', 
         compute='compute_task_color', 
@@ -29,12 +34,25 @@ class MaintenanceRequest(models.Model):
              "10=Verde(completado), 1=Rojo(vencido), 2=Amarillo(próximo), 0=Gris(sin fecha/no urgente)"
     )
 
+    evidence_images = fields.Many2many(
+        'ir.attachment',
+    )
+    
+    def open_camera(self):
+        return {
+            'type': 'ir.actions.act_url',
+            'url': '/web/static/src/js/webcam.js',  # Ruta a tu script de cámara
+            'target': 'new',
+        }
+    
+    
     @api.constrains('schedule_date')
     def check_schedule_date(self):
         "Validates that a scheduling date is entered for the task"
         for request in self:
             if not request.schedule_date:
                 raise ValidationError(_("Debe ingresar una fecha de inicio para la tarea."))
+                
     def copy_activities_to_child_tasks(self):
         """
         Copy activities from parent task to child tasks, but don't copy the 'done' status.
