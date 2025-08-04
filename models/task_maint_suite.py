@@ -150,81 +150,106 @@ class MaintenanceRequest(models.Model):
         return res
 
     @api.model_create_multi
-    def create(self, vals):
-        """
-        Override create to handle initial activity replication
-        """
-        request = super(MaintenanceRequest, self).create(vals)
-        # Si es una tarea recurrente, replicar actividades
-        if request.frequency and not request.parent_request_id:
-            request._replicate_initial_activities_to_children()
-        return request
+    def create(self, vals_list):
+        """Handle activity replication when creating new requests"""
+        requests = super(MaintenanceRequest, self).create(vals_list)
+
+        # Filtrar solo las solicitudes padre recurrentes
+        parent_requests = requests.filtered(
+            lambda r: r.frequency and not r.parent_request_id
+        )
+
+        # Replicar actividades para cada padre
+        for parent in parent_requests:
+            parent._replicate_activities_to_children()
+
+        return requests
 
     def write(self, vals):
-        """
-        Override write method to handle activity replication
-        Compatible with both old and new API
-        """
-        # Pre-write operations
+        """Handle activity sync across all recurring requests"""
+        # Validación de fecha
         if 'schedule_date' in vals and not vals.get('schedule_date'):
             raise ValidationError(_("Debe ingresar una fecha de inicio para la tarea."))
 
-        # Store original activities if needed
+        # Almacenar estado antes de la modificación
         original_activities = {}
         if 'task_ids' in vals:
-            original_activities = {r.id: r.task_ids.mapped('description') for r in self}
+            original_activities = {r.id: set(r.task_ids.mapped('description')) for r in self}
 
-        # Call super with proper arguments
-        if hasattr(super(), 'write'):
-            result = super().write(vals)
-        else:
-            # Fallback for older API style
-            result = super(MaintenanceRequest, self).write(vals)
+        # Ejecutar escritura
+        result = super().write(vals)
 
-        # Post-write operations
+        # Sincronizar actividades si hubo cambios
         if 'task_ids' in vals:
-            self._replicate_new_activities(original_activities)
+            self._sync_activities_across_recurrences(original_activities)
 
-        if any(field in vals for field in ['frequency', 'repeat_task', 'repeat_interval',
-                                         'repeat_end_type', 'repeat_until', 'repeat_count', 'schedule_date']):
+        # Manejar campos de repetición
+        rep_fields = ['frequency', 'repeat_task', 'repeat_interval',
+                     'repeat_end_type', 'repeat_until', 'repeat_count', 'schedule_date']
+        if any(field in vals for field in rep_fields):
             self.filtered(lambda r: r.frequency and not r.parent_request_id).update_recurring_requests()
 
         return result
 
-    def _replicate_new_activities(self, original_activities):
-        """
-        Handle activity replication after write
-        """
+    def _sync_activities_across_recurrences(self, original_activities):
+        """Sync activities (add/remove) across all recurring requests"""
         for request in self:
-            if request.id in original_activities:
-                current = request.task_ids.mapped('description')
-                new_activities = list(set(current) - set(original_activities[request.id]))
+            if request.id not in original_activities:
+                continue
 
-                if new_activities:
-                    all_requests = request._get_all_recurring_requests() - request
-                    for recur_request in all_requests:
-                        existing = recur_request.task_ids.mapped('description')
-                        for activity in request.task_ids.filtered(
-                            lambda a: a.description in new_activities and 
-                                    a.description not in existing
-                        ):
-                            activity.copy({
-                                'checklist_id': recur_request.id,
-                                'done': False
-                            })
+            # Obtener todas las repeticiones relacionadas
+            all_requests = request._get_all_recurring_requests()
+
+            # Identificar cambios
+            current_activities = set(request.task_ids.mapped('description'))
+            original = original_activities[request.id]
+
+            # Actividades nuevas
+            new_activities = current_activities - original
+            # Actividades eliminadas
+            removed_activities = original - current_activities
+
+            # Sincronizar con cada repetición
+            for recur_request in all_requests:
+                if recur_request.id == request.id:
+                    continue
+
+                # Añadir nuevas actividades
+                existing = set(recur_request.task_ids.mapped('description'))
+                for activity in request.task_ids.filtered(
+                    lambda a: a.description in new_activities and 
+                            a.description not in existing
+                ):
+                    activity.copy({
+                        'checklist_id': recur_request.id,
+                        'done': False
+                    })
+
+                # Eliminar actividades removidas
+                if removed_activities:
+                    recur_request.task_ids.filtered(
+                        lambda a: a.description in removed_activities
+                    ).unlink()
+
     def _get_all_recurring_requests(self):
-        """
-        Obtiene todas las solicitudes recurrentes relacionadas (padre + hijas)
-        :return: recordset de maintenance.request
-        """
-        self.ensure_one()  # Asegura que solo se llama en un registro
-        
-        # Si es una tarea hija, devolver padre + todas las hermanas
+        """Get all related recurring requests (parent + children)"""
+        self.ensure_one()
         if self.parent_request_id:
             return self.parent_request_id | self.parent_request_id.child_request_ids
-        # Si es una tarea padre, devolverse a sí mismo + todas las hijas
-        else:
-            return self | self.child_request_ids                        
+        return self | self.child_request_ids
+
+    def _replicate_activities_to_children(self):
+        """Initial activity replication to child requests"""
+        for child in self.child_request_ids:
+            # Eliminar actividades existentes primero (opcional)
+            child.task_ids.unlink()
+            
+            # Copiar todas las actividades del padre
+            for activity in self.task_ids:
+                activity.copy({
+                    'checklist_id': child.id,
+                    'done': False
+                })                 
 
     def action_show_weekly_options(self):
         """
