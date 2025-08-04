@@ -29,7 +29,7 @@
         </field>
     </record>  
 
-    <!-- Vista mejorada para maintenance.equipment -->
+    <!-- nuevos campos en la vista heredada -->
     <record id="maintenance_equipment_form_custom" model="ir.ui.view">
         <field name="name">maintenance.equipment.form.custom</field>
         <field name="model">maintenance.equipment</field>

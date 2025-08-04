@@ -83,6 +83,7 @@ class MaintenanceRequest(models.Model):
              'child_request_ids.stage_id', 'child_request_ids.repeat_until', 
              'child_request_ids.task_ids.done', 'parent_request_id.stage_id',
              'parent_request_id.repeat_until', 'parent_request_id.task_ids.done')
+
     def compute_task_color (self):
         """
        Assign a color to the task based on its status and due date,
@@ -136,34 +137,94 @@ class MaintenanceRequest(models.Model):
                 # Forzar la escritura en la base de datos
                 parent.write({'color': parent.color})
 
-    def write(self, vals):
-        """Update recurring requests based on changes to the original request
-            param vals: dictionary containing the fields and values to update
-            return: update tasks"""
-        # Validar schedule_date si está presente en los valores
-        if 'schedule_date' in vals and not vals['schedule_date']:
-            raise ValidationError(_("Debe ingresar una fecha de inicio (schedule_date) para la tarea."))
-
-        # Actualizar la solicitud de mantenimiento
-        res = super().write(vals)
-
-        # Actualiza las solicitudes recurrentes
-        campos_repeticion = ['frequency', 'repeat_task', 'repeat_interval',
-                             'repeat_end_type', 'repeat_until', 'repeat_count', 'schedule_date']
-        # Recorre todas las solicitudes
-        for request in self:
-            # Si se actualiza una de las siguientes variables, actualiza las solicitudes recurrentes
-            if any(field in vals for field in campos_repeticion):
-                # Si es padre, actualiza las solicitudes recurrentes
-                if request.frequency and not request.parent_request_id:
-                    # Actualiza las tareas hijas sin duplicar ni eliminar
-                    request.update_recurring_requests()
-
-        # Copy activities to child tasks if parent's activities were modified
-        if 'task_ids' in vals:
-            self.copy_activities_to_child_tasks()
-
+    def update_recurring_requests(self):
+        """
+        Update child requests and replicate activities
+        """
+        # Primero llama al método original (si existe)
+        res = super(MaintenanceRequest, self).update_recurring_requests()
+        
+        # Luego replica las actividades
+        self._replicate_initial_activities_to_children()
+        
         return res
+
+    @api.model_create_multi
+    def create(self, vals):
+        """
+        Override create to handle initial activity replication
+        """
+        request = super(MaintenanceRequest, self).create(vals)
+        # Si es una tarea recurrente, replicar actividades
+        if request.frequency and not request.parent_request_id:
+            request._replicate_initial_activities_to_children()
+        return request
+
+    def write(self, vals):
+        """
+        Override write method to handle activity replication
+        Compatible with both old and new API
+        """
+        # Pre-write operations
+        if 'schedule_date' in vals and not vals.get('schedule_date'):
+            raise ValidationError(_("Debe ingresar una fecha de inicio para la tarea."))
+
+        # Store original activities if needed
+        original_activities = {}
+        if 'task_ids' in vals:
+            original_activities = {r.id: r.task_ids.mapped('description') for r in self}
+
+        # Call super with proper arguments
+        if hasattr(super(), 'write'):
+            result = super().write(vals)
+        else:
+            # Fallback for older API style
+            result = super(MaintenanceRequest, self).write(vals)
+
+        # Post-write operations
+        if 'task_ids' in vals:
+            self._replicate_new_activities(original_activities)
+
+        if any(field in vals for field in ['frequency', 'repeat_task', 'repeat_interval',
+                                         'repeat_end_type', 'repeat_until', 'repeat_count', 'schedule_date']):
+            self.filtered(lambda r: r.frequency and not r.parent_request_id).update_recurring_requests()
+
+        return result
+
+    def _replicate_new_activities(self, original_activities):
+        """
+        Handle activity replication after write
+        """
+        for request in self:
+            if request.id in original_activities:
+                current = request.task_ids.mapped('description')
+                new_activities = list(set(current) - set(original_activities[request.id]))
+
+                if new_activities:
+                    all_requests = request._get_all_recurring_requests() - request
+                    for recur_request in all_requests:
+                        existing = recur_request.task_ids.mapped('description')
+                        for activity in request.task_ids.filtered(
+                            lambda a: a.description in new_activities and 
+                                    a.description not in existing
+                        ):
+                            activity.copy({
+                                'checklist_id': recur_request.id,
+                                'done': False
+                            })
+    def _get_all_recurring_requests(self):
+        """
+        Obtiene todas las solicitudes recurrentes relacionadas (padre + hijas)
+        :return: recordset de maintenance.request
+        """
+        self.ensure_one()  # Asegura que solo se llama en un registro
+        
+        # Si es una tarea hija, devolver padre + todas las hermanas
+        if self.parent_request_id:
+            return self.parent_request_id | self.parent_request_id.child_request_ids
+        # Si es una tarea padre, devolverse a sí mismo + todas las hijas
+        else:
+            return self | self.child_request_ids                        
 
     def action_show_weekly_options(self):
         """
@@ -289,19 +350,24 @@ class MaintenanceRequest(models.Model):
         Check the status of the tasks associated with a maintenance request:
         - If all tasks are completed, the status changes to 'repaired' (sequence=3)
         - If at least one is completed, the status changes to 'in progress' (sequence=2)
+        - If none are completed, remains in 'draft' or similar (sequence=1)
         """
+        stage_model = self.env['maintenance.stage']
         for request in self:
             if request.task_ids:
                 # Primero verifica la condición más restrictiva (todas completadas)
                 if all(task.done for task in request.task_ids):
-                    new_stage = self.env['maintenance.stage'].search([('sequence', '=', 3)], limit=1)
-                    if new_stage and request.stage_id != new_stage:
-                        request.stage_id = new_stage
+                    new_stage = stage_model.search([('sequence', '=', 3)], limit=1)
                 # Luego verifica si al menos una está completada
                 elif any(task.done for task in request.task_ids):
-                    new_stage = self.env['maintenance.stage'].search([('sequence', '=', 2)], limit=1)
-                    if new_stage and request.stage_id != new_stage:
-                        request.stage_id = new_stage
+                    new_stage = stage_model.search([('sequence', '=', 2)], limit=1)
+                else:
+                    # Ninguna tarea completada
+                    new_stage = stage_model.search([('sequence', '=', 1)], limit=1)
+
+                # Actualiza la etapa si es diferente a la actual
+                if new_stage and request.stage_id != new_stage:
+                    request.stage_id = new_stage
     
      
 
