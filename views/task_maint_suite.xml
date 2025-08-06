@@ -6,11 +6,10 @@
         <field name="model">maintenance.request</field>
         <field name="inherit_id" ref="maintenance.hr_equipment_request_view_form"/>
         <field name="arch" type="xml">
-            <xpath expr="//field[@name='schedule_date']" position="after">  
-                <label for="responsible_id" string="Responsable" class="oe_bold"/>
-                <field name="responsible_id" string="Responsable" widget="many2one"  class="oe_bold"/>
+            <xpath expr="//field[@name='user_id']" position="before">
+                <label for="user_id" string="Responsable" class="oe_bold"/>
             </xpath>
-            <xpath expr="//field[@name='responsible_id']" position="after">  
+            <xpath expr="//field[@name='schedule_date']" position="after">  
                 <div class="oe_bold" style="margin-bottom: 8px;">
                     <label for="frequency" string="Recurrente"/>
                 </div>
